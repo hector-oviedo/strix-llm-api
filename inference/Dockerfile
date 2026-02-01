@@ -42,11 +42,12 @@ RUN uv pip install --pre \
     torch torchvision torchaudio \
     --index-url https://rocm.prereleases.amd.com/whl/gfx1151/
 
-# 6. INSTALL ROCm COMPILER (7.10)
-# Required for building vLLM extensions (hipcc)
+# 6. INSTALL ROCm COMPILER (7.2)
+# We use the 7.2 repo because 7.10 is not public/standard yet.
+# 7.2 contains the necessary hipcc compiler to build vLLM extensions.
 RUN mkdir -p /etc/apt/keyrings && \
     wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | gpg --dearmor -o /etc/apt/keyrings/rocm.gpg && \
-    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.10.0/ noble main" > /etc/apt/sources.list.d/rocm.list && \
+    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.2/ ubuntu main" > /etc/apt/sources.list.d/rocm.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends rocm-dev && \
     rm -rf /var/lib/apt/lists/*
