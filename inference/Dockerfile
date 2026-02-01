@@ -23,6 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsndfile1 \
     build-essential \
     python3-dev \
+    ninja-build \
     && rm -rf /var/lib/apt/lists/*
 
 # 2. INSTALL UV
@@ -40,18 +41,27 @@ RUN uv pip install --pre \
     torch torchvision torchaudio \
     --index-url https://rocm.prereleases.amd.com/whl/gfx1151/
 
-# 6. FREEZE CONSTRAINTS
-# This prevents vLLM from upgrading/downgrading our custom Torch versions
-RUN uv pip freeze > /app/constraints.txt
+# 6. INSTALL BUILD DEPENDENCIES
+# packaging is required for vllm build
+RUN uv pip install packaging setuptools wheel numpy
 
-# 7. VERIFY TORCH INSTALLATION
-RUN python -c "import torch; print(f'Torch: {torch.__version__}'); assert 'rocm' in torch.__version__, 'FATAL: UV installed CPU version!'"
+# 7. BUILD vLLM FROM SOURCE
+# We must build from source because no PyPI wheel exists for ROCm 7.10 yet.
+# Cloning the latest version (or a specific tag if stability is needed)
+WORKDIR /app/vllm-build
+RUN git clone https://github.com/vllm-project/vllm.git .
 
-# 8. INSTALL vLLM (Respecting Constraints)
-# We force vLLM to use our Strix Torch.
-# Note: Standard vLLM wheels are CUDA. We attempt to install.
-# If this fails at runtime due to missing CUDA symbols, we might need to build from source.
-RUN uv pip install vllm --constraint /app/constraints.txt
+# Configure Build for ROCm
+ENV VLLM_TARGET_DEVICE=rocm
+# Force the build to use our existing torch (do not isolate)
+ENV UV_no_build_isolation=1 
+
+# Install dependencies (ignoring torch/torchvision as we have them)
+RUN uv pip install -v .
+
+# 8. CLEANUP
+WORKDIR /app
+RUN rm -rf /app/vllm-build
 
 # 9. SETUP ENTRYPOINT
 COPY entrypoint.sh /entrypoint.sh
