@@ -13,6 +13,9 @@ services:
     devices:
       - "/dev/kfd:/dev/kfd"
       - "/dev/dri:/dev/dri"
+    group_add:
+      - "${VIDEO_GID}"
+      - "${RENDER_GID}"
     ports:
       - "8000:8000"
     volumes:

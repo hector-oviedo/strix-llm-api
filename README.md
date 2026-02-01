@@ -20,9 +20,26 @@ The system is split into two modular services:
 - Docker & Docker Compose.
 
 ### Quick Start
-```bash
-docker compose up -d
-```
+1.  **Configure Permissions**:
+    You must provide the GIDs for the `video` and `render` groups to ensure the container can access the GPU.
+    ```bash
+    # Find your IDs
+    getent group video | cut -d: -f3
+    getent group render | cut -d: -f3
+    ```
+    Copy `.env.example` to `.env` and fill in the values:
+    ```bash
+    cp .env.example .env
+    # Edit .env:
+    # VIDEO_GID=...
+    # RENDER_GID=...
+    # HF_TOKEN=...
+    ```
+
+2.  **Launch**:
+    ```bash
+    docker compose up -d
+    ```
 The API will be available at `http://localhost:8000/v1`.
 
 ## Development status
