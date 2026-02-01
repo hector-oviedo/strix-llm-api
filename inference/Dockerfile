@@ -47,7 +47,7 @@ RUN uv pip install --pre \
 # 7.2 contains the necessary hipcc compiler to build vLLM extensions.
 RUN mkdir -p /etc/apt/keyrings && \
     wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | gpg --dearmor -o /etc/apt/keyrings/rocm.gpg && \
-    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.2/ ubuntu main" > /etc/apt/sources.list.d/rocm.list && \
+    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.2/ noble main" > /etc/apt/sources.list.d/rocm.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends rocm-dev && \
     rm -rf /var/lib/apt/lists/*
