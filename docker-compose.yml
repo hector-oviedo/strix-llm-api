@@ -1,4 +1,7 @@
 services:
+  # ---------------------------------------------------------------------------
+  # INFERENCE ENGINE (The Muscle)
+  # ---------------------------------------------------------------------------
   inference:
     build:
       context: ./inference
@@ -7,7 +10,6 @@ services:
     container_name: strix-inference
     privileged: true
     restart: unless-stopped
-    # CRITICAL: Pass GPU Hardware
     devices:
       - "/dev/kfd:/dev/kfd"
       - "/dev/dri:/dev/dri"
@@ -25,3 +27,20 @@ services:
     security_opt:
       - seccomp:unconfined
     command: vllm serve openai/gpt-oss-120b --host 0.0.0.0 --port 8000 --trust-remote-code
+
+  # ---------------------------------------------------------------------------
+  # API GATEWAY (The Brain)
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: strix-backend:latest
+    container_name: strix-backend
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - INFERENCE_URL=http://inference:8000/v1
+    depends_on:
+      - inference
