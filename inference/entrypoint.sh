@@ -1,31 +1,44 @@
 #!/bin/bash
 set -e
 
-# ECHO: Start Log
 echo "=================================================="
 echo "   STRIX HALO (RDNA 3.5) INFERENCE ENGINE"
-echo "   ROCm 7.10 | vLLM"
+echo "   vLLM + ROCm | Pre-built Image"
 echo "=================================================="
 
-# AUTO-INJECT: Check if HSA Override is missing, and force it.
+# Ensure GFX override is set
 if [ -z "$HSA_OVERRIDE_GFX_VERSION" ]; then
-    echo "[INFO] No GFX version detected. Defaulting to Strix Halo (11.5.1)..."
     export HSA_OVERRIDE_GFX_VERSION=11.5.1
-else
-    echo "[INFO] GFX Override detected: $HSA_OVERRIDE_GFX_VERSION"
 fi
 
-# CHECK: Print GPU Info via PyTorch
-echo "[INFO] Checking Python Torch ROCm detection..."
-python3 -c "import torch; print(f'Device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"None\"}')" || echo "[WARN] GPU detection failed."
+echo "[INFO] HSA_OVERRIDE_GFX_VERSION: $HSA_OVERRIDE_GFX_VERSION"
+echo "[INFO] PYTORCH_ROCM_ARCH: $PYTORCH_ROCM_ARCH"
 
-# LAUNCH: Start vLLM
-# We expect the command arguments to be passed to this script (e.g. "vllm serve ...")
+# Check GPU
+python3 -c "
+import torch
+if torch.cuda.is_available():
+    print(f'✓ GPU: {torch.cuda.get_device_name(0)}')
+    print(f'✓ PyTorch: {torch.__version__}')
+else:
+    print('✗ No GPU detected')
+" || echo "[WARN] GPU check failed, continuing..."
+
+echo "[INFO] vLLM version: $(vllm --version 2>/dev/null || echo 'unknown')"
+echo "=================================================="
+
+# Start vLLM
 if [ "$#" -eq 0 ]; then
-    echo "[INFO] No command provided. Starting default vLLM serve..."
-    # Default placeholder, likely overridden by docker-compose
-    exec vllm serve openai/gpt-oss-120b --host 0.0.0.0 --port 8000
+    echo "[INFO] Starting vLLM with default settings..."
+    exec python3 -m vllm.entrypoints.openai.api_server \
+        --model openai/gpt-oss-120b \
+        --host 0.0.0.0 \
+        --port 8000 \
+        --trust-remote-code \
+        --dtype bfloat16 \
+        --max-model-len 32768 \
+        --max-num-seqs 1
 else
-    echo "[INFO] Executing command: $@"
+    echo "[INFO] Executing: $@"
     exec "$@"
 fi
