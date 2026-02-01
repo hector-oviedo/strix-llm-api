@@ -13,9 +13,6 @@ services:
     devices:
       - "/dev/kfd:/dev/kfd"
       - "/dev/dri:/dev/dri"
-    group_add:
-      - "video"
-      - "render"
     ports:
       - "8000:8000"
     volumes:
@@ -23,6 +20,7 @@ services:
     environment:
       - HSA_OVERRIDE_GFX_VERSION=11.5.1
       - HIP_VISIBLE_DEVICES=0
+      - HF_TOKEN=${HF_TOKEN}
     ipc: host
     security_opt:
       - seccomp:unconfined
