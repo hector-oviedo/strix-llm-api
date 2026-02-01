@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     wget \
     curl \
+    gnupg \
     libgl1 \
     libglib2.0-0 \
     libgomp1 \
@@ -41,13 +42,21 @@ RUN uv pip install --pre \
     torch torchvision torchaudio \
     --index-url https://rocm.prereleases.amd.com/whl/gfx1151/
 
-# 6. INSTALL BUILD DEPENDENCIES
-# packaging is required for vllm build
+# 6. INSTALL ROCm COMPILER (7.10)
+# Required for building vLLM extensions (hipcc)
+RUN mkdir -p /etc/apt/keyrings && \
+    wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | gpg --dearmor -o /etc/apt/keyrings/rocm.gpg && \
+    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.10.0/ noble main" > /etc/apt/sources.list.d/rocm.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends rocm-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV ROCM_HOME=/opt/rocm
+
+# 7. INSTALL BUILD DEPENDENCIES
 RUN uv pip install packaging setuptools wheel numpy
 
-# 7. BUILD vLLM FROM SOURCE
-# We must build from source because no PyPI wheel exists for ROCm 7.10 yet.
-# Cloning the latest version (or a specific tag if stability is needed)
+# 8. BUILD vLLM FROM SOURCE
 WORKDIR /app/vllm-build
 RUN git clone https://github.com/vllm-project/vllm.git .
 
@@ -57,17 +66,18 @@ ENV VLLM_TARGET_DEVICE=rocm
 ENV UV_no_build_isolation=1 
 
 # Install dependencies (ignoring torch/torchvision as we have them)
-RUN uv pip install -v .
+# CRITICAL: Use --no-build-isolation to use the existing Strix PyTorch
+RUN uv pip install --no-build-isolation -v .
 
-# 8. CLEANUP
+# 9. CLEANUP
 WORKDIR /app
 RUN rm -rf /app/vllm-build
 
-# 9. SETUP ENTRYPOINT
+# 10. SETUP ENTRYPOINT
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# 10. RUNTIME CONFIG
+# 11. RUNTIME CONFIG
 EXPOSE 8000
 ENV HSA_OVERRIDE_GFX_VERSION=11.5.1
 
