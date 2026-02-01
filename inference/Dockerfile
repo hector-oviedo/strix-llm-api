@@ -21,6 +21,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     ca-certificates \
     libsndfile1 \
+    build-essential \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # 2. INSTALL UV
@@ -38,20 +40,24 @@ RUN uv pip install --pre \
     torch torchvision torchaudio \
     --index-url https://rocm.prereleases.amd.com/whl/gfx1151/
 
-# 6. VERIFY TORCH INSTALLATION
+# 6. FREEZE CONSTRAINTS
+# This prevents vLLM from upgrading/downgrading our custom Torch versions
+RUN uv pip freeze > /app/constraints.txt
+
+# 7. VERIFY TORCH INSTALLATION
 RUN python -c "import torch; print(f'Torch: {torch.__version__}'); assert 'rocm' in torch.__version__, 'FATAL: UV installed CPU version!'"
 
-# 7. INSTALL vLLM
-# We allow vLLM to install its dependencies, but we hope it respects our Torch version.
-# If vLLM enforces strict torch versions, we might need to use --no-deps for torch or build from source.
-# For now, we try the standard install which is the "simple" path.
-RUN uv pip install vllm
+# 8. INSTALL vLLM (Respecting Constraints)
+# We force vLLM to use our Strix Torch.
+# Note: Standard vLLM wheels are CUDA. We attempt to install.
+# If this fails at runtime due to missing CUDA symbols, we might need to build from source.
+RUN uv pip install vllm --constraint /app/constraints.txt
 
-# 8. SETUP ENTRYPOINT
+# 9. SETUP ENTRYPOINT
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# 9. RUNTIME CONFIG
+# 10. RUNTIME CONFIG
 EXPOSE 8000
 ENV HSA_OVERRIDE_GFX_VERSION=11.5.1
 
